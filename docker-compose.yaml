@@ -1,7 +1,0 @@
-services:
-  cobalt:
-    image: ghcr.io/imputnet/cobalt:10
-    container_name: cobalt
-    restart: unless-stopped
-    ports:
-      - "9000:9000"
