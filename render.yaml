@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: cobalt-fork
+    runtime: node
+    plan: free
+    buildCommand: echo "nothing to build"
+    startCommand: npm start
