@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>cobalt</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg:#141414; --surface:#1d1d1d; --elevated:#262626; --elevated-hover:#2e2e2e;
+  --text:#e8e8e8; --gray:#8b8b93; --border:#333;
+  --blue:#3b8df6; --green:#3ddc55; --red:#ff4d5e; --amber:#ffb347;
+  --glow:rgba(59,141,246,.14);
+  --radius:11px; --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+::selection{background:var(--blue);color:#fff}
+body{
+  font-family:var(--mono);background:var(--bg);color:var(--text);
+  min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  padding:20px 16px calc(24px + env(safe-area-inset-bottom));
+}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background:
+  radial-gradient(1000px 520px at 50% -12%, rgba(59,141,246,.07), transparent 62%),
+  radial-gradient(760px 420px at 88% 112%, rgba(61,220,85,.05), transparent 60%);}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px);background-size:26px 26px;}
+.wrap{width:100%;max-width:600px;display:flex;flex-direction:column;align-items:center;gap:14px;margin:auto;position:relative;z-index:1}
+
+/* ---- connection bar ---- */
+#conn-bar{
+  width:100%;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--gray);
+  background:var(--surface);border:1px solid var(--border);border-radius:999px;
+  padding:8px 14px;transition:border-color .3s;
+}
+#conn-dot{width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0;animation:pulse 1.6s infinite}
+#conn-bar.ok #conn-dot{background:var(--green)}
+#conn-bar.bad #conn-dot{background:var(--red);animation:none}
+#conn-bar.ok{border-color:rgba(61,220,85,.25)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+#conn-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#conn-change{background:none;border:none;color:var(--blue);font:inherit;font-size:12px;cursor:pointer;padding:2px 4px}
+#conn-change:hover{text-decoration:underline}
+
+/* ---- mascot + glow ---- */
+.stage{position:relative;margin:14px 0 4px}
+.stage::before{
+  content:'';position:absolute;inset:-70px -110px;border-radius:50%;
+  background:radial-gradient(closest-side,var(--glow),transparent 72%);
+  transition:background 1s;pointer-events:none;
+}
+body.is-ok{--glow:rgba(61,220,85,.13)} body.is-busy{--glow:rgba(59,141,246,.18)} body.is-err{--glow:rgba(255,77,94,.14)}
+#meowbalt{height:148px;object-fit:cover;position:relative;animation:float 4.5s ease-in-out infinite;user-select:none;-webkit-user-drag:none}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+/* ---- services popover ---- */
+#services{position:relative}
+#services-btn{
+  display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--gray);
+  font:inherit;font-size:13px;font-weight:500;cursor:pointer;padding:6px 10px;border-radius:999px;transition:.2s;
+}
+#services-btn:hover{color:var(--text);background:var(--surface)}
+#services-ico{
+  width:21px;height:21px;display:grid;place-items:center;border-radius:50%;
+  background:var(--elevated);transition:transform .25s;
+}
+#services.open #services-ico{transform:rotate(45deg)}
+#services-pop{
+  display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  width:min(340px,86vw);background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:12px;z-index:20;box-shadow:0 12px 40px rgba(0,0,0,.5);
+}
+#services.open #services-pop{display:block;animation:pop .18s ease-out}
+@keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(-6px)}to{opacity:1;transform:translateX(-50%)}}
+.chip{display:inline-block;padding:4px 9px;margin:2.5px;border-radius:7px;background:var(--elevated);font-size:12px;font-weight:500}
+
+/* ---- omnibox ---- */
+#omnibox{width:100%;display:flex;flex-direction:column;gap:8px}
+#input-box{
+  display:flex;align-items:center;background:var(--surface);border-radius:var(--radius);
+  outline:1.5px solid var(--border);transition:outline-color .2s;
+}
+#input-box:focus-within{outline:2px solid var(--text)}
+#input-box.shake{animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+#link-ico{padding:0 4px 0 14px;display:grid;place-items:center;color:var(--gray)}
+#link{
+  flex:1;background:none;border:none;outline:none;color:var(--text);font:inherit;
+  font-size:14px;font-weight:500;padding:17px 8px;min-width:0;
+}
+#link::placeholder{color:var(--gray)}
+#go{
+  align-self:stretch;min-width:52px;border:none;background:none;cursor:pointer;color:var(--text);
+  border-left:1.5px solid var(--border);border-radius:0 var(--radius) var(--radius) 0;
+  font:inherit;font-size:22px;font-weight:600;letter-spacing:-4px;text-indent:-4px;transition:background .15s;
+  display:grid;place-items:center;
+}
+#go:hover{background:rgba(255,255,255,.06)} #go:active{background:rgba(255,255,255,.1)}
+#go:disabled{opacity:.5;cursor:wait}
+.spin{width:17px;height:17px;border:2.5px solid var(--border);border-top-color:var(--text);border-radius:50%;animation:rot .7s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ---- switcher + paste ---- */
+#actions{display:flex;justify-content:space-between;gap:8px}
+.switcher{display:flex;background:var(--surface);border-radius:var(--radius);padding:3.5px;gap:2px}
+.switcher button{
+  border:none;background:none;color:var(--gray);font:inherit;font-size:13px;font-weight:500;
+  padding:7px 13px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:.18s;
+}
+.switcher button:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.switcher button.on{background:var(--text);color:var(--bg)}
+#paste{
+  display:flex;align-items:center;gap:7px;border:none;background:var(--surface);color:var(--text);
+  font:inherit;font-size:13.5px;font-weight:500;padding:7px 14px;border-radius:var(--radius);
+  cursor:pointer;transition:.18s;
+}
+#paste:hover{background:var(--elevated-hover)} #paste:active{transform:scale(.96)}
+
+/* ---- status ---- */
+#status{min-height:22px;font-size:13px;font-weight:500;text-align:center;color:var(--gray);line-height:1.5;word-break:break-word}
+#status.anim{animation:rise .25s ease-out}
+@keyframes rise{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+#status.err{color:var(--red)} #status.ok{color:var(--green)} #status.info{color:var(--blue)}
+#copy-link{background:none;border:none;color:var(--blue);font:inherit;font-size:12.5px;cursor:pointer;text-decoration:underline;padding:0 3px}
+
+/* ---- picker ---- */
+#picker{display:none;width:100%;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:8px}
+#picker.show{display:grid}
+.tile{
+  aspect-ratio:1;border-radius:9px;overflow:hidden;position:relative;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border);transition:transform .15s,border-color .15s;
+}
+.tile:hover{transform:translateY(-3px);border-color:var(--gray)}
+.tile img{width:100%;height:100%;object-fit:cover;display:block}
+.tile .badge{position:absolute;bottom:5px;right:5px;background:rgba(0,0,0,.75);border-radius:5px;padding:2px 6px;font-size:11px}
+.tile.audio{display:grid;place-items:center;font-size:34px}
+
+/* ---- turnstile holder ---- */
+#cf-holder{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:60}
+#cf-holder iframe{border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.55)}
+
+/* ---- collapsibles ---- */
+details{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+summary{
+  list-style:none;cursor:pointer;padding:13px 16px;font-size:13px;font-weight:600;color:var(--gray);
+  display:flex;justify-content:space-between;align-items:center;transition:.2s;user-select:none;
+}
+summary::-webkit-details-marker{display:none}
+summary:hover{color:var(--text);background:rgba(255,255,255,.03)}
+summary::after{content:'▾';transition:transform .25s}
+details[open] summary::after{transform:rotate(180deg)}
+.panel{padding:4px 16px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.panel label{display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--gray);font-weight:500}
+.panel select{
+  background:var(--elevated);color:var(--text);border:1px solid var(--border);border-radius:8px;
+  font:inherit;font-size:13px;padding:9px 10px;cursor:pointer;appearance:none;
+}
+.panel select:hover{border-color:var(--gray)}
+.check{flex-direction:row!important;align-items:center;gap:9px!important;font-size:12.5px!important;color:var(--text)!important;cursor:pointer}
+.check input{accent-color:var(--blue);width:16px;height:16px;cursor:pointer}
+.wide{grid-column:1/-1}
+.panel input[type=text],.panel input[type=password]{
+  background:var(--elevated);color:var(--text);border:1px solid var(--border);border-radius:8px;
+  font:inherit;font-size:13px;padding:9px 10px;width:100%;outline:none;
+}
+.panel input:focus{border-color:var(--blue)}
+.mini-btn{
+  background:var(--elevated);color:var(--text);border:1px solid var(--border);border-radius:8px;
+  font:inherit;font-size:12.5px;font-weight:600;padding:9px 12px;cursor:pointer;transition:.15s;
+}
+.mini-btn:hover{background:var(--elevated-hover)}
+.hint{grid-column:1/-1;font-size:11.5px;color:var(--gray);line-height:1.65}
+.hint code{background:var(--elevated);padding:2px 6px;border-radius:5px;font-size:11px;color:var(--amber);word-break:break-all}
+
+footer{margin-top:26px;font-size:11px;color:var(--gray);opacity:.6;text-align:center;line-height:1.6}
+@media(max-width:430px){.panel{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="conn-bar">
+    <span id="conn-dot"></span>
+    <span id="conn-text">checking for live cobalt servers…</span>
+    <button id="conn-change" onclick="document.getElementById('server-details').open=true">change</button>
+  </div>
+
+  <div class="stage">
+    <img id="meowbalt" src="assets/meowbalt-smile.png"
+         alt="mascot" onerror="this.style.display='none'">
+  </div>
+
+  <div id="services">
+    <button id="services-btn" onclick="document.getElementById('services').classList.toggle('open')">
+      <span id="services-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+      supported services
+    </button>
+    <div id="services-pop">
+      <span class="chip">youtube</span><span class="chip">tiktok</span><span class="chip">instagram</span>
+      <span class="chip">twitter / x</span><span class="chip">reddit</span><span class="chip">soundcloud</span>
+      <span class="chip">vimeo</span><span class="chip">facebook</span><span class="chip">twitch</span>
+      <span class="chip">pinterest</span><span class="chip">snapchat</span><span class="chip">tumblr</span>
+      <span class="chip">bilibili</span><span class="chip">streamable</span><span class="chip">loom</span>
+      <span class="chip">dailymotion</span><span class="chip">vk</span><span class="chip">ok.ru</span>
+    </div>
+  </div>
+
+  <div id="omnibox">
+    <div id="input-box">
+      <span id="link-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+      <input id="link" type="text" placeholder="paste a link here" autocomplete="off" spellcheck="false" enterkeyhint="go">
+      <button id="go" title="download">&gt;&gt;</button>
+    </div>
+    <div id="actions">
+      <div class="switcher" id="switcher">
+        <button class="on" data-mode="auto">✨ auto</button>
+        <button data-mode="audio">🎵 audio</button>
+        <button data-mode="mute">🔇 mute</button>
+      </div>
+      <button id="paste">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        paste
+      </button>
+    </div>
+  </div>
+
+  <div id="status"></div>
+  <div id="picker"></div>
+
+  <details id="settings-details">
+    <summary>⚙ download settings</summary>
+    <div class="panel">
+      <label>video quality<select id="s-quality">
+        <option value="max">max</option><option value="2160">4k · 2160p</option>
+        <option value="1440">1440p</option><option value="1080">1080p</option>
+        <option value="720">720p</option><option value="480">480p</option><option value="360">360p</option>
+      </select></label>
+      <label>audio format<select id="s-aformat">
+        <option value="best">best</option><option value="mp3">mp3</option>
+        <option value="ogg">ogg</option><option value="wav">wav</option><option value="opus">opus</option>
+      </select></label>
+      <label>audio bitrate<select id="s-abitrate">
+        <option value="320">320 kbps</option><option value="256">256 kbps</option>
+        <option value="128">128 kbps</option><option value="96">96 kbps</option><option value="64">64 kbps</option>
+      </select></label>
+      <label>filename style<select id="s-fname">
+        <option value="basic">basic</option><option value="classic">classic</option>
+        <option value="pretty">pretty</option><option value="nerdy">nerdy</option>
+      </select></label>
+      <label>youtube codec<select id="s-ytcodec">
+        <option value="h264">h264 (compatible)</option><option value="vp9">vp9</option><option value="av1">av1</option>
+      </select></label>
+      <label class="check"><input type="checkbox" id="s-proxy"> always proxy files</label>
+      <label class="check"><input type="checkbox" id="s-nometa"> disable metadata</label>
+      <label class="check"><input type="checkbox" id="s-ttfull"> tiktok full audio</label>
+      <label class="check"><input type="checkbox" id="s-tth265"> tiktok h265</label>
+    </div>
+  </details>
+
+  <details id="server-details">
+    <summary>🖧 cobalt server</summary>
+    <div class="panel">
+      <label class="wide">your server address (optional — leave blank for auto)
+        <input type="text" id="srv-url" placeholder="https://cobalt-api.example.com">
+      </label>
+      <label class="wide">api key (only if your instance needs one)
+        <input type="password" id="srv-key" placeholder="optional">
+      </label>
+      <button class="mini-btn" onclick="saveServer()">save &amp; connect</button>
+      <button class="mini-btn" onclick="usePublic()">use public instances</button>
+      <div class="hint">
+        servers behind cloudflare's human check are unlocked automatically — a small checkbox
+        may appear near the bottom of the screen; tap it if it does. servers that can't be
+        unlocked are skipped and the next one is tried. for a private server with no checks:<br>
+        <code>docker run -d -p 9000:9000 ghcr.io/imputnet/cobalt:latest</code>
+      </div>
+    </div>
+  </details>
+
+  <footer>single-file cobalt · solves bot-checks in-page · falls back across live servers</footer>
+</div>
+
+<!-- cloudflare turnstile renders here when a server demands a human check -->
+<div id="cf-holder"></div>
+
+<script>
+/* ============================================================
+   PUBLIC INSTANCES — community-hosted, browser/CORS friendly.
+   dead ones are skipped at boot; bot-locked ones get solved
+   via turnstile, or blacklisted & rotated past if unsolvable.
+   ============================================================ */
+const PUBLIC_INSTANCES = [
+  'https://cobalt-api.kwiatekmiki.com',
+  'https://cobalt-backend.canine.tools',
+  'https://capi.oak.li',
+  'https://downloadapi.stuff.solutions',
+  'https://api.dl.ixhby.dev',
+  'https://cobalt-api.meowing.de',
+  'https://apicobalt.arm64.au',
+  'https://cobalt.kwiatekmiki.com',
+];
+
+const $ = id => document.getElementById(id);
+const state = { live:[], base:null, custom:false, mode:'auto', blacklist:new Set(), auth:{} };
+const MASCOTS = {
+  smile:'assets/meowbalt-smile.png',
+  sleep:'assets/meowbalt-error.png',
+};
+
+/* ---------- settings persistence ---------- */
+const SETTING_IDS = ['s-quality','s-aformat','s-abitrate','s-fname','s-ytcodec','s-proxy','s-nometa','s-ttfull','s-tth265'];
+function loadSettings(){
+  try{
+    const s = JSON.parse(localStorage.getItem('cobalt.settings')||'{}');
+    for(const id of SETTING_IDS){ const el=$(id); if(!el) continue;
+      if(el.type==='checkbox') el.checked = !!s[id]; else if(s[id]!=null) el.value = s[id]; }
+  }catch(e){}
+}
+function saveSettings(){
+  const s={}; for(const id of SETTING_IDS){ const el=$(id); s[id]= el.type==='checkbox'? el.checked : el.value; }
+  localStorage.setItem('cobalt.settings', JSON.stringify(s));
+}
+SETTING_IDS.forEach(id=>$(id).addEventListener('change', saveSettings));
+
+/* ---------- connection ---------- */
+async function probe(base, ms=4500){
+  const ctrl = new AbortController(); const t = setTimeout(()=>ctrl.abort(), ms);
+  try{
+    const r = await fetch(base.replace(/\/$/,'')+'/', {signal:ctrl.signal, headers:{Accept:'application/json'}});
+    if(!r.ok) throw new Error('bad status '+r.status);
+    const j = await r.json();
+    if(!j.cobalt || !j.cobalt.version) throw new Error('not a cobalt server');
+    return { base: base.replace(/\/$/,''), info: j.cobalt };
+  } finally { clearTimeout(t); }
+}
+function setConn(kind, text){
+  const bar=$('conn-bar'); bar.className = kind==='ok'?'ok':kind==='bad'?'bad':'';
+  $('conn-text').textContent = text;
+  document.body.className = kind==='ok'?'is-ok':kind==='bad'?'is-err':'';
+  $('meowbalt').src = kind==='bad' ? MASCOTS.sleep : MASCOTS.smile;
+}
+async function connect(){
+  setConn('checking','checking for live cobalt servers…');
+  const custom = localStorage.getItem('cobalt.server');
+  if(custom){
+    try{
+      const r = await probe(custom, 6000);
+      state.live=[r]; state.custom=true;
+      return useInstance(r, true);
+    }catch(e){ status('your saved server didn\'t answer — falling back to public instances','err'); }
+  }
+  state.custom=false;
+  const results = await Promise.allSettled(PUBLIC_INSTANCES.map(u=>probe(u)));
+  state.live = results.filter(r=>r.status==='fulfilled').map(r=>r.value);
+  if(!state.live.length){ setConn('bad','no public server answered — check your internet, or add your own below'); return; }
+  pickNext();
+}
+function pickNext(){
+  const open = state.live.filter(r=>!state.blacklist.has(r.base));
+  if(!open.length){
+    state.base=null;
+    setConn('bad','every reachable server is locked right now — wait a bit & retry, or add your own below');
+    return false;
+  }
+  useInstance(open[0], false);
+  return true;
+}
+function useInstance(r, custom){
+  state.base = r.base; state.custom = !!custom;
+  const open = state.live.filter(x=>!state.blacklist.has(x.base)).length;
+  setConn('ok', (custom?'your server · ':'connected · ') + r.base.replace(/^https?:\/\//,'')
+    + ' · v' + r.info.version + (custom?'':' · ' + open + '/' + state.live.length + ' open'));
+}
+function saveServer(){
+  const url = $('srv-url').value.trim();
+  if(url) localStorage.setItem('cobalt.server', url); else localStorage.removeItem('cobalt.server');
+  const key = $('srv-key').value.trim();
+  if(key) localStorage.setItem('cobalt.key', key); else localStorage.removeItem('cobalt.key');
+  state.blacklist.clear(); connect();
+}
+function usePublic(){
+  localStorage.removeItem('cobalt.server'); $('srv-url').value=''; state.blacklist.clear(); connect();
+}
+
+/* ---------- turnstile (human check) ---------- */
+let tsScriptPromise = null;
+function loadTurnstile(){
+  if(window.turnstile) return Promise.resolve();
+  if(!tsScriptPromise){
+    tsScriptPromise = new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      s.async=true; s.defer=true;
+      s.onload=()=>res();
+      s.onerror=()=>{ tsScriptPromise=null; rej(new Error('cloudflare blocked')); };
+      document.head.appendChild(s);
+    });
+  }
+  return tsScriptPromise;
+}
+async function solveTurnstile(base){
+  const sr = await fetch(base + '/turnstile/sitekey', { headers:{Accept:'application/json'} });
+  if(!sr.ok) throw new Error('no sitekey endpoint');
+  const sj = await sr.json();
+  const sitekey = sj.sitekey || (sj.turnstile && sj.turnstile.sitekey);
+  if(!sitekey) throw new Error('no sitekey');
+  await loadTurnstile();
+  const holder = $('cf-holder');
+  try{ turnstile.remove(holder); }catch(e){}
+  return await new Promise((res,rej)=>{
+    const bail = setTimeout(()=>{ try{turnstile.remove(holder);}catch(e){} rej(new Error('check timed out')); }, 25000);
+    try{
+      turnstile.render(holder, {
+        sitekey,
+        size:'invisible',
+        execution:'execute',
+        callback: token => { clearTimeout(bail); try{turnstile.remove(holder);}catch(e){} res(token); },
+        'error-callback':   () => { clearTimeout(bail); rej(new Error('check failed')); },
+        'timeout-callback': () => { clearTimeout(bail); rej(new Error('check timed out')); },
+      });
+      turnstile.execute(holder);
+    }catch(e){ clearTimeout(bail); rej(e); }
+  });
+}
+/* solve the check, then build every plausible auth header for this server */
+async function getAuthVariants(base){
+  const out = [];
+  try{
+    const token = await solveTurnstile(base);
+    try{
+      const er = await fetch(base + '/turnstile/jwt', {
+        method:'POST',
+        headers:{ Accept:'application/json', 'Content-Type':'application/json', 'Authorization':'Turnstile '+token },
+        body: JSON.stringify({ token })
+      });
+      if(er.ok){
+        const ej = await er.json();
+        const jwt = ej.jwt || ej.token;
+        if(jwt){ out.push({ header:'Bearer ' + jwt }); out.push({ header:'JWT ' + jwt }); }
+      }
+    }catch(e){}
+    out.push({ header:'Turnstile ' + token });
+  }catch(e){}
+  return out;
+}
+
+/* ---------- ui helpers ---------- */
+function status(msg, kind, withCopy){
+  const el=$('status');
+  el.className=''; void el.offsetWidth;
+  el.className = (kind||'') + ' anim';
+  el.textContent = msg;
+  if(withCopy){
+    const b=document.createElement('button'); b.id='copy-link'; b.textContent='copy direct link';
+    b.onclick=()=>{ navigator.clipboard.writeText(withCopy).then(()=>b.textContent='copied ✓'); };
+    el.appendChild(document.createTextNode(' ')); el.appendChild(b);
+  }
+}
+function setLoading(on){
+  const go=$('go'); go.disabled=on;
+  go.innerHTML = on ? '<span class="spin"></span>' : '&gt;&gt;';
+  document.body.className = on ? 'is-busy' : (state.base?'is-ok':'');
+}
+
+/* ---------- main request ---------- */
+async function processRequest(attempt=0){
+  const url = $('link').value.trim();
+  if(attempt===0){
+    if(!url){
+      const box=$('input-box'); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+      status('paste a link first','err'); return;
+    }
+    if(!state.base){ status('no server connected — open “cobalt server” below and retry','err'); return; }
+    setLoading(true); $('picker').className=''; $('picker').innerHTML='';
+    status('fetching media…');
+  }
+  const MAX = state.live.length + 4;
+  if(attempt >= MAX){ status('no server could handle this right now — wait a bit and retry','err'); setLoading(false); return; }
+
+  const payload = {
+    url,
+    downloadMode:   state.mode,
+    videoQuality:   $('s-quality').value,
+    audioFormat:    $('s-aformat').value,
+    audioBitrate:   $('s-abitrate').value,
+    filenameStyle:  $('s-fname').value,
+    youtubeVideoCodec: $('s-ytcodec').value,
+    alwaysProxy:    $('s-proxy').checked,
+    disableMetadata:$('s-nometa').checked,
+    tiktokFullAudio:$('s-ttfull').checked,
+    tiktokH265:     $('s-tth265').checked,
+  };
+  const headers = { Accept:'application/json', 'Content-Type':'application/json' };
+  const key = localStorage.getItem('cobalt.key');
+  if(key) headers['Authorization'] = 'Api-Key ' + key;
+
+  /* fast path: reuse a recently-won auth header for this server */
+  const cached = state.auth[state.base];
+  if(cached && Date.now()-cached.t < 100000) headers['Authorization'] = cached.header;
+
+  const retry = delay => setTimeout(()=>processRequest(attempt+1), delay);
+
+  try{
+    const r = await fetch(state.base+'/', { method:'POST', headers, body:JSON.stringify(payload) });
+    let j; try{ j = await r.json(); }catch(e){ throw new Error('bad response'); }
+    const code = j.error && j.error.code;
+    const isAuthErr = j.status==='error' && code && code.startsWith('error.api.auth.');
+
+    if(isAuthErr){
+      delete state.auth[state.base];
+      /* 1 — try to pass the human check on this same server */
+      status('human check required — solving it in the background…','info');
+      const variants = await getAuthVariants(state.base);
+      for(const v of variants){
+        headers['Authorization'] = v.header;
+        let jj;
+        try{
+          const rr = await fetch(state.base+'/', { method:'POST', headers, body:JSON.stringify(payload) });
+          jj = await rr.json();
+        }catch(e){ break; }
+        const cc = jj.error && jj.error.code;
+        if(!(jj.status==='error' && cc && cc.startsWith('error.api.auth.'))){
+          state.auth[state.base] = { header:v.header, t:Date.now() };   // remember what worked
+          handleResponse(jj); setLoading(false); return;
+        }
+      }
+      /* 2 — couldn't unlock it → rotate to the next public server */
+      if(!state.custom){
+        state.blacklist.add(state.base);
+        status('server stayed locked — switching to another…','info');
+        if(pickNext()){ retry(300); return; }
+      }
+      status(friendlyError(code),'err'); setLoading(false); return;
+    }
+
+    /* busy / token-exhausted servers also rotate */
+    if(j.status==='error' && (code==='error.api.rate_exceeded' || code==='error.api.youtube.login') && !state.custom){
+      state.blacklist.add(state.base);
+      status('server busy — switching to another…','info');
+      if(pickNext()){ retry(300); return; }
+    }
+
+    handleResponse(j); setLoading(false);
+  }catch(e){
+    if(!state.custom){
+      state.blacklist.add(state.base);
+      status('server didn\'t answer — switching to another…','info');
+      if(pickNext()){ retry(300); return; }
+    }
+    status('couldn\'t reach any server right now — wait a moment and retry','err');
+    setLoading(false);
+  }
+}
+
+function handleResponse(j){
+  switch(j.status){
+    case 'tunnel': case 'redirect':
+      status('done! your download should start now.','ok', j.url);
+      download(j.url, j.filename);
+      break;
+    case 'picker':
+      status('this post has several items — tap one to save it.','ok');
+      renderPicker(j);
+      break;
+    case 'error':
+      status(friendlyError(j.error && j.error.code), 'err');
+      break;
+    default:
+      status('unexpected response from server ('+j.status+')','err');
+  }
+}
+
+const ERROR_MAP = {
+  'error.api.auth.jwt.missing':'human check couldn\'t be solved here — retry, or serve this page via koder\'s localhost url',
+  'error.api.auth.key.missing':'this instance needs an api key — add it under “cobalt server”',
+  'error.api.auth.key.invalid':'your api key is invalid',
+  'error.api.link.invalid':'that link looks invalid — double-check it',
+  'error.api.service.unsupported':'this service isn\'t supported by cobalt',
+  'error.api.service.notfound':'this service isn\'t supported by cobalt',
+  'error.api.content.video.unavailable':'this media is unavailable (private / region-locked?)',
+  'error.api.content.video.private':'this media is private',
+  'error.api.content.video.age':'this media is age-restricted',
+  'error.api.content.too.long':'this media is too long for the server to process',
+  'error.api.youtube.login':'this server\'s youtube tokens are exhausted — retry to hit another server',
+  'error.api.rate_exceeded':'rate limited — retry to rotate to another server',
+  'error.api.fetch.fail':'the server couldn\'t fetch that media — retry, or try another quality',
+  'error.api.invalid_body':'the server rejected the request settings — try default settings',
+};
+function friendlyError(code){
+  if(!code) return 'unknown server error';
+  return (ERROR_MAP[code] || 'server error') + '  ·  [' + code + ']';
+}
+
+/* ---------- downloads & picker ---------- */
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+function download(url, filename){
+  if(isIOS){
+    window.open(url,'_blank');
+    status('opened in a new tab — tap share → “save to files”','info', url);
+  }else{
+    const a=document.createElement('a');
+    a.href=url; if(filename) a.download=filename; a.rel='noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+}
+function renderPicker(j){
+  const grid=$('picker'); grid.innerHTML='';
+  let i=0;
+  if(j.audio){
+    const t=document.createElement('div'); t.className='tile audio'; t.textContent='🎵'; t.title='audio track';
+    t.style.animation='rise .3s ease-out both'; t.style.animationDelay=(i++*45)+'ms';
+    t.onclick=()=>download(j.audio,'audio'); grid.appendChild(t);
+  }
+  (j.picker||[]).forEach(item=>{
+    const t=document.createElement('div'); t.className='tile';
+    t.innerHTML = '<img src="'+(item.thumb||item.url)+'" alt="" loading="lazy">'
+                + (item.type==='video'?'<span class="badge">▶ video</span>':'');
+    t.style.animation='rise .3s ease-out both'; t.style.animationDelay=(i++*45)+'ms';
+    t.onclick=()=>download(item.url);
+    grid.appendChild(t);
+  });
+  grid.classList.add('show');
+}
+
+/* ---------- events ---------- */
+$('go').addEventListener('click', ()=>processRequest());
+$('link').addEventListener('keydown', e=>{ if(e.key==='Enter') processRequest(); });
+$('paste').addEventListener('click', async ()=>{
+  try{ $('link').value = await navigator.clipboard.readText(); $('link').focus(); }
+  catch(e){ $('link').focus(); status('clipboard blocked — long-press the field and tap paste','info'); }
+});
+document.querySelectorAll('#switcher button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('#switcher button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); state.mode = b.dataset.mode;
+  });
+});
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#services')) $('services').classList.remove('open');
+});
+
+/* ---------- boot ---------- */
+loadSettings();
+$('srv-url').value = localStorage.getItem('cobalt.server')||'';
+$('srv-key').value = localStorage.getItem('cobalt.key')||'';
+connect();
+</script>
+</body>
+</html>
