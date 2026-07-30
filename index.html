@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#141414">
+<title>cobalt</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg:#141414; --surface:#1d1d1d; --elevated:#262626; --elevated-hover:#2e2e2e;
+  --text:#e8e8e8; --gray:#8b8b93; --border:#333;
+  --blue:#3b8df6; --green:#3ddc55; --red:#ff4d5e; --amber:#ffb347;
+  --glow:rgba(59,141,246,.14);
+  --radius:11px; --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+::selection{background:var(--blue);color:#fff}
+body{
+  font-family:var(--mono);background:var(--bg);color:var(--text);
+  min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  padding:20px 16px calc(24px + env(safe-area-inset-bottom));
+}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background:
+  radial-gradient(1000px 520px at 50% -12%, rgba(59,141,246,.07), transparent 62%),
+  radial-gradient(760px 420px at 88% 112%, rgba(61,220,85,.05), transparent 60%);}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px);background-size:26px 26px;}
+.wordmark{
+  position:fixed;top:1.5vh;left:50%;transform:translateX(-50%);z-index:0;
+  font-weight:700;font-size:clamp(110px,24vw,210px);letter-spacing:-.06em;white-space:nowrap;
+  color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.05);user-select:none;pointer-events:none;
+}
+.wrap{width:100%;max-width:600px;display:flex;flex-direction:column;align-items:center;gap:14px;margin:auto;position:relative;z-index:1}
+
+#conn-bar{
+  width:100%;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--gray);
+  background:var(--surface);border:1px solid var(--border);border-radius:999px;
+  padding:8px 14px;transition:border-color .3s;
+}
+#conn-dot{width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0;animation:pulse 1.6s infinite}
+#conn-bar.ok #conn-dot{background:var(--green)}
+#conn-bar.bad #conn-dot{background:var(--red);animation:none}
+#conn-bar.ok{border-color:rgba(61,220,85,.25)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+#conn-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#conn-recheck,#conn-change{background:none;border:none;color:var(--blue);font:inherit;font-size:12px;cursor:pointer;padding:2px 4px}
+#conn-change:hover{text-decoration:underline}
+#conn-recheck{font-size:14px;line-height:1}
+#conn-recheck.spinning{display:inline-block;animation:rot .8s linear infinite}
+
+.stage{position:relative;margin:14px 0 4px}
+.stage::before{
+  content:'';position:absolute;inset:-70px -110px;border-radius:50%;
+  background:radial-gradient(closest-side,var(--glow),transparent 72%);
+  transition:background 1s;pointer-events:none;
+}
+body.is-ok{--glow:rgba(61,220,85,.13)} body.is-busy{--glow:rgba(59,141,246,.18)} body.is-err{--glow:rgba(255,77,94,.14)}
+#meowbalt{height:148px;object-fit:cover;position:relative;animation:float 4.5s ease-in-out infinite;user-select:none;-webkit-user-drag:none}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+#services{position:relative}
+#services-btn{
+  display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--gray);
+  font:inherit;font-size:13px;font-weight:500;cursor:pointer;padding:6px 10px;border-radius:999px;transition:.2s;
+}
+#services-btn:hover{color:var(--text);background:var(--surface)}
+#services-ico{width:21px;height:21px;display:grid;place-items:center;border-radius:50%;background:var(--elevated);transition:transform .25s}
+#services.open #services-ico{transform:rotate(45deg)}
+#services-pop{
+  display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  width:min(340px,86vw);background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:12px;z-index:20;box-shadow:0 12px 40px rgba(0,0,0,.5);
+}
+#services.open #services-pop{display:block;animation:pop .18s ease-out}
+@keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(-6px)}to{opacity:1;transform:translateX(-50%)}}
+.chip{display:inline-block;padding:4px 9px;margin:2.5px;border-radius:7px;background:var(--elevated);font-size:12px;font-weight:500}
+
+#omnibox{width:100%;display:flex;flex-direction:column;gap:8px}
+#input-box{
+  display:flex;align-items:center;background:var(--surface);border-radius:var(--radius);
+  outline:1.5px solid var(--border);transition:outline-color .2s;
+}
+#input-box:focus-within{outline:2px solid var(--text)}
+#input-box.shake{animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+#link-ico{padding:0 4px 0 14px;display:grid;place-items:center;color:var(--gray)}
+#link{flex:1;background:none;border:none;outline:none;color:var(--text);font:inherit;font-size:14px;font-weight:500;padding:17px 8px;min-width:0}
+#link::placeholder{color:var(--gray)}
+#go{
+  align-self:stretch;min-width:52px;border:none;background:none;cursor:pointer;color:var(--text);
+  border-left:1.5px solid var(--border);border-radius:0 var(--radius) var(--radius) 0;
+  font:inherit;font-size:22px;font-weight:600;letter-spacing:-4px;text-indent:-4px;transition:background .15s;
+  display:grid;place-items:center;
+}
+#go:hover{background:rgba(255,255,255,.06)} #go:active{background:rgba(255,255,255,.1)}
+#go:disabled{opacity:.5;cursor:wait}
+.spin{width:17px;height:17px;border:2.5px solid var(--border);border-top-color:var(--text);border-radius:50%;animation:rot .7s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+#actions{display:flex;justify-content:space-between;gap:8px}
+.switcher{display:flex;background:var(--surface);border-radius:var(--radius);padding:3.5px;gap:2px}
+.switcher button{
+  border:none;background:none;color:var(--gray);font:inherit;font-size:13px;font-weight:500;
+  padding:7px 13px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:.18s;
+}
+.switcher button:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.switcher button.on{background:var(--text);color:var(--bg)}
+#paste{
+  display:flex;align-items:center;gap:7px;border:none;background:var(--surface);color:var(--text);
+  font:inherit;font-size:13.5px;font-weight:500;padding:7px 14px;border-radius:var(--radius);cursor:pointer;transition:.18s;
+}
+#paste:hover{background:var(--elevated-hover)} #paste:active{transform:scale(.96)}
+
+#status{min-height:22px;font-size:13px;font-weight:500;text-align:center;color:var(--gray);line-height:1.5;word-break:break-word}
+#status.anim{animation:rise .25s ease-out}
+@keyframes rise{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+#status.err{color:var(--red)} #status.ok{color:var(--green)} #status.info{color:var(--blue)}
+#copy-link{background:none;border:none;color:var(--blue);font:inherit;font-size:12.5px;cursor:pointer;text-decoration:underline;padding:0 3px}
+
+#picker{display:none;width:100%;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:8px}
+#picker.show{display:grid}
+.tile{
+  aspect-ratio:1;border-radius:9px;overflow:hidden;position:relative;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border);transition:transform .15s,border-color .15s;
+}
+.tile:hover{transform:translateY(-3px);border-color:var(--gray)}
+.tile img{width:100%;height:100%;object-fit:cover;display:block}
+.tile .badge{position:absolute;bottom:5px;right:5px;background:rgba(0,0,0,.75);border-radius:5px;padding:2px 6px;font-size:11px}
+.tile.audio{display:grid;place-items:center;font-size:34px}
+
+details{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+summary{
+  list-style:none;cursor:pointer;padding:13px 16px;font-size:13px;font-weight:600;color:var(--gray);
+  display:flex;justify-content:space-between;align-items:center;transition:.2s;user-select:none;
+}
+summary::-webkit-details-marker{display:none}
+summary:hover{color:var(--text);background:rgba(255,255,255,.03)}
+summary::after{content:'▾';transition:transform .25s}
+details[open] summary::after{transform:rotate(180deg)}
+.panel{padding:4px 16px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.panel label{display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--gray);font-weight:500}
+.panel select{
+  background:var(--elevated);color:var(--text);border:1px solid var(--border);border-radius:8px;
+  font:inherit;font-size:13px;padding:9px 10px;cursor:pointer;appearance:none;
+}
+.panel select:hover{border-color:var(--gray)}
+.check{flex-direction:row!important;align-items:center;gap:9px!important;font-size:12.5px!important;color:var(--text)!important;cursor:pointer}
+.check input{accent-color:var(--blue);width:16px;height:16px;cursor:pointer}
+.wide{grid-column:1/-1}
+.panel input[type=text],.panel input[type=password],.panel textarea{
+  background:var(--elevated);color:var(--text);border:1px solid var(--border);border-radius:8px;
+  font:inherit;font-size:13px;padding:9px 10px;width:100%;outline:none;
+}
+.panel textarea{font-size:12.5px;resize:vertical}
+.panel input:focus,.panel textarea:focus{border-color:var(--blue)}
+.mini-btn{
+  background:var(--elevated);color:var(--text);border:1px solid var(--border);border-radius:8px;
+  font:inherit;font-size:12.5px;font-weight:600;padding:9px 12px;cursor:pointer;transition:.15s;
+}
+.mini-btn:hover{background:var(--elevated-hover)}
+.hint{grid-column:1/-1;font-size:11.5px;color:var(--gray);line-height:1.65}
+.hint code{background:var(--elevated);padding:2px 6px;border-radius:5px;font-size:11px;color:var(--amber);word-break:break-all}
+.code-row{grid-column:1/-1;display:flex;gap:8px;align-items:flex-start;background:var(--elevated);border-radius:8px;padding:10px 12px}
+.code-row code{flex:1;font-size:11px;color:var(--amber);white-space:pre-wrap;word-break:break-all;line-height:1.7}
+.copy-btn{flex-shrink:0;padding:5px 10px!important;font-size:11px!important}
+
+#diag-list{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.diag-row{
+  display:flex;align-items:center;gap:10px;background:var(--elevated);border-radius:8px;
+  padding:9px 12px;border-left:3px solid var(--gray);font-size:12px;animation:rise .3s ease-out both;
+}
+.diag-row.ok{border-left-color:var(--green)} .diag-row.bad{border-left-color:var(--red)}
+.diag-host{font-weight:600;color:var(--text);flex:1;word-break:break-all}
+.diag-meta{color:var(--gray);font-size:11px;text-align:right}
+.diag-chip{
+  font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  padding:3px 7px;border-radius:5px;background:rgba(255,255,255,.06);color:var(--gray);white-space:nowrap;
+}
+.diag-row.ok .diag-chip{color:var(--green);background:rgba(61,220,85,.1)}
+.diag-row.bad .diag-chip{color:var(--red);background:rgba(255,77,94,.1)}
+.diag-note{font-size:12px;color:var(--gray);padding:6px 2px}
+
+footer{margin-top:26px;font-size:11px;color:var(--gray);opacity:.6;text-align:center;line-height:1.6}
+@media(max-width:430px){.panel{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wordmark" aria-hidden="true">cobalt</div>
+<div class="wrap">
+
+  <div id="conn-bar">
+    <span id="conn-dot"></span>
+    <span id="conn-text">checking for cobalt servers…</span>
+    <button id="conn-recheck" title="recheck all servers">↻</button>
+    <button id="conn-change" onclick="document.getElementById('server-details').open=true">change</button>
+  </div>
+
+  <div class="stage">
+    <img id="meowbalt" src="https://raw.githubusercontent.com/imputnet/cobalt/main/web/static/meowbalt/smile.png" alt="meowbalt" onerror="this.onerror=null">
+  </div>
+
+  <div id="services">
+    <button id="services-btn" onclick="document.getElementById('services').classList.toggle('open')">
+      <span id="services-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+      supported services
+    </button>
+    <div id="services-pop">
+      <span class="chip">youtube</span><span class="chip">tiktok</span><span class="chip">instagram</span>
+      <span class="chip">twitter / x</span><span class="chip">reddit</span><span class="chip">soundcloud</span>
+      <span class="chip">vimeo</span><span class="chip">facebook</span><span class="chip">twitch</span>
+      <span class="chip">pinterest</span><span class="chip">snapchat</span><span class="chip">tumblr</span>
+      <span class="chip">bilibili</span><span class="chip">streamable</span><span class="chip">loom</span>
+      <span class="chip">dailymotion</span><span class="chip">vk</span><span class="chip">ok.ru</span>
+    </div>
+  </div>
+
+  <div id="omnibox">
+    <div id="input-box">
+      <span id="link-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+      <input id="link" type="text" placeholder="paste a link here" autocomplete="off" spellcheck="false" enterkeyhint="go">
+      <button id="go" title="download">&gt;&gt;</button>
+    </div>
+    <div id="actions">
+      <div class="switcher" id="switcher">
+        <button class="on" data-mode="auto">✨ auto</button>
+        <button data-mode="audio">🎵 audio</button>
+        <button data-mode="mute">🔇 mute</button>
+      </div>
+      <button id="paste">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        paste
+      </button>
+    </div>
+  </div>
+
+  <div id="status"></div>
+  <div id="picker"></div>
+
+  <details>
+    <summary>⚙ download settings</summary>
+    <div class="panel">
+      <label>video quality<select id="s-quality">
+        <option value="max">max</option><option value="2160">4k · 2160p</option>
+        <option value="1440">1440p</option><option value="1080">1080p</option>
+        <option value="720">720p</option><option value="480">480p</option><option value="360">360p</option>
+      </select></label>
+      <label>audio format<select id="s-aformat">
+        <option value="best">best</option><option value="mp3">mp3</option>
+        <option value="ogg">ogg</option><option value="wav">wav</option><option value="opus">opus</option>
+      </select></label>
+      <label>audio bitrate<select id="s-abitrate">
+        <option value="320">320 kbps</option><option value="256">256 kbps</option>
+        <option value="128">128 kbps</option><option value="96">96 kbps</option><option value="64">64 kbps</option>
+      </select></label>
+      <label>filename style<select id="s-fname">
+        <option value="basic">basic</option><option value="classic">classic</option>
+        <option value="pretty">pretty</option><option value="nerdy">nerdy</option>
+      </select></label>
+      <label>youtube codec<select id="s-ytcodec">
+        <option value="h264">h264 (compatible)</option><option value="vp9">vp9</option><option value="av1">av1</option>
+      </select></label>
+      <label class="check"><input type="checkbox" id="s-proxy"> always proxy files</label>
+      <label class="check"><input type="checkbox" id="s-nometa"> disable metadata</label>
+      <label class="check"><input type="checkbox" id="s-ttfull"> tiktok full audio</label>
+      <label class="check"><input type="checkbox" id="s-tth265"> tiktok h265</label>
+    </div>
+  </details>
+
+  <details id="diag-details">
+    <summary>🩺 servers &amp; diagnostics</summary>
+    <div class="panel">
+      <div class="hint">
+        live status of every server this page knows about. find fresh community servers at
+        <code>instances.cobalt.best</code> and add them below (saved on this device).
+      </div>
+      <label class="wide">extra servers (one url per line)
+        <textarea id="extra-servers" rows="3" placeholder="https://cobalt-api.example.com"></textarea>
+      </label>
+      <button class="mini-btn" onclick="saveExtras()">save extras</button>
+      <button class="mini-btn" onclick="runDiagnostics()">run diagnostics</button>
+      <div id="diag-list" class="wide"></div>
+    </div>
+  </details>
+
+  <details id="server-details">
+    <summary>🖧 your own server (most reliable)</summary>
+    <div class="panel">
+      <label class="wide">server address (optional — leave blank for auto)
+        <input type="text" id="srv-url" placeholder="http://192.168.1.50:8080 or https://…">
+      </label>
+      <label class="wide">api key (only if your instance requires one)
+        <input type="password" id="srv-key" placeholder="optional">
+      </label>
+      <button class="mini-btn" onclick="saveServer()">save &amp; connect</button>
+      <button class="mini-btn" onclick="usePublic()">back to public servers</button>
+      <div class="hint">
+        your own cobalt has <b>no bot checks and no limits</b>. on your pc, run:
+      </div>
+      <div class="code-row"><code>docker compose up -d      # in the repo folder (docker-compose.yml)
+node server.js            # serves this page + proxies to cobalt</code><button class="mini-btn copy-btn" onclick="copyCmd(this)">copy</button></div>
+      <div class="hint">or without docker:</div>
+      <div class="code-row"><code>git clone https://github.com/imputnet/cobalt
+cd cobalt/api
+pnpm install
+echo "API_URL=http://localhost:9000/" > .env
+pnpm start</code><button class="mini-btn copy-btn" onclick="copyCmd(this)">copy</button></div>
+      <div class="hint">
+        then open <code>http://localhost:8080</code> — or from your phone on the same wifi,
+        <code>http://YOUR-PC-LAN-IP:8080</code>. if the server isn't up yet, this page
+        watches and connects on its own the moment it starts.
+      </div>
+    </div>
+  </details>
+
+  <footer>single-file cobalt frontend · rotates &amp; rechecks servers automatically</footer>
+</div>
+
+<script>
+/* community instances — fallback pool. add more via the diagnostics panel. */
+const PUBLIC_INSTANCES = [
+  'https://cobalt-api.kwiatekmiki.com',
+  'https://cobalt-backend.canine.tools',
+  'https://capi.oak.li',
+  'https://downloadapi.stuff.solutions',
+  'https://api.dl.ixhby.dev',
+  'https://cobalt-api.meowing.de',
+  'https://apicobalt.arm64.au',
+  'https://cobalt.kwiatekmiki.com',
+];
+
+const $ = id => document.getElementById(id);
+const state = { live:[], base:null, custom:false, mode:'auto', blacklist:new Set() };
+let watchTimer = null;
+const MASCOTS = {
+  smile:'https://raw.githubusercontent.com/imputnet/cobalt/main/web/static/meowbalt/smile.png',
+  sleep:'https://raw.githubusercontent.com/imputnet/cobalt/main/web/static/meowbalt/sleep.png',
+};
+
+/* when served by server.js, the same-origin /api proxy is the best candidate */
+function candidateBases(){
+  const bases = [];
+  if(location.protocol.startsWith('http')) bases.push(location.origin + '/api');
+  const extras = (localStorage.getItem('cobalt.extra')||'')
+    .split(/[\n,]+/).map(s=>s.trim()).filter(s=>s.startsWith('http'));
+  return [...bases, ...extras, ...PUBLIC_INSTANCES];
+}
+
+/* ---------- settings ---------- */
+const SETTING_IDS = ['s-quality','s-aformat','s-abitrate','s-fname','s-ytcodec','s-proxy','s-nometa','s-ttfull','s-tth265'];
+function loadSettings(){
+  try{
+    const s = JSON.parse(localStorage.getItem('cobalt.settings')||'{}');
+    for(const id of SETTING_IDS){ const el=$(id);
+      if(el.type==='checkbox') el.checked = !!s[id]; else if(s[id]!=null) el.value = s[id]; }
+  }catch(e){}
+}
+SETTING_IDS.forEach(id=>$(id).addEventListener('change', ()=>{
+  const s={}; for(const k of SETTING_IDS){ const el=$(k); s[k]= el.type==='checkbox'? el.checked : el.value; }
+  localStorage.setItem('cobalt.settings', JSON.stringify(s));
+}));
+
+/* ---------- connection ---------- */
+async function probe(base, ms=4500){
+  const ctrl = new AbortController(); const t = setTimeout(()=>ctrl.abort(), ms);
+  const b = base.replace(/\/$/,'');
+  try{
+    let r;
+    try{ r = await fetch(b+'/', {signal:ctrl.signal, headers:{Accept:'application/json'}}); }
+    catch(e){ throw new Error(ctrl.signal.aborted ? 'timed out' : 'blocked by browser / network'); }
+    if(!r.ok) throw new Error('http '+r.status+(r.status===403?' (bot-check)':''));
+    let j; try{ j = await r.json(); }catch(e){ throw new Error('not a cobalt api'); }
+    if(!j.cobalt || !j.cobalt.version) throw new Error('not a cobalt api');
+    return { base:b, info:j.cobalt };
+  } finally { clearTimeout(t); }
+}
+function setConn(kind, text){
+  $('conn-bar').className = kind==='ok'?'ok':kind==='bad'?'bad':'';
+  $('conn-text').textContent = text;
+  document.body.className = kind==='ok'?'is-ok':kind==='bad'?'is-err':'';
+  $('meowbalt').src = kind==='bad' ? MASCOTS.sleep : MASCOTS.smile;
+}
+async function connect(){
+  setConn('checking','checking for cobalt servers…');
+  const custom = localStorage.getItem('cobalt.server');
+  if(custom){
+    try{
+      const r = await probe(custom, 6000);
+      state.live=[r]; state.custom=true;
+      return useInstance(r, true);
+    }catch(e){
+      status('your saved server didn\'t answer — using public servers, watching for yours in the background','info');
+      watchCustom(custom);
+    }
+  }
+  state.custom=false;
+  const results = await Promise.allSettled(candidateBases().map(u=>probe(u)));
+  state.live = results.filter(r=>r.status==='fulfilled').map(r=>r.value);
+  if(!state.live.length){ setConn('bad','no server answered — run diagnostics below, or start your own backend'); return; }
+  pickNext();
+}
+function watchCustom(url){
+  clearInterval(watchTimer);
+  watchTimer = setInterval(async ()=>{
+    try{
+      const r = await probe(url, 4000);
+      clearInterval(watchTimer); watchTimer=null;
+      state.live=[r]; state.custom=true;
+      useInstance(r, true);
+      status('your server just came online — switched to it ✓','ok');
+    }catch(e){}
+  }, 5000);
+}
+function pickNext(){
+  let open = state.live.filter(r=>!state.blacklist.has(r.base));
+  if(!open.length && state.live.length){ state.blacklist.clear(); open = state.live; }
+  if(!open.length){
+    state.base=null;
+    setConn('bad','no live servers — run diagnostics below, or start your own backend');
+    return false;
+  }
+  useInstance(open[0], false);
+  return true;
+}
+function useInstance(r, custom){
+  state.base = r.base; state.custom = !!custom;
+  const open = state.live.filter(x=>!state.blacklist.has(x.base)).length;
+  setConn('ok', (custom?'your server · ':'connected · ') + r.base.replace(/^https?:\/\//,'')
+    + ' · v' + r.info.version + (custom?'':' · ' + open + '/' + state.live.length + ' open'));
+}
+function saveServer(){
+  const url = $('srv-url').value.trim();
+  if(url) localStorage.setItem('cobalt.server', url); else localStorage.removeItem('cobalt.server');
+  const key = $('srv-key').value.trim();
+  if(key) localStorage.setItem('cobalt.key', key); else localStorage.removeItem('cobalt.key');
+  state.blacklist.clear(); connect();
+}
+function usePublic(){
+  localStorage.removeItem('cobalt.server'); $('srv-url').value='';
+  clearInterval(watchTimer); watchTimer=null;
+  state.blacklist.clear(); connect();
+}
+
+/* ---------- ui ---------- */
+function status(msg, kind, withCopy){
+  const el=$('status');
+  el.className=''; void el.offsetWidth;
+  el.className = (kind||'') + ' anim';
+  el.textContent = msg;
+  if(withCopy){
+    const b=document.createElement('button'); b.id='copy-link'; b.textContent='copy direct link';
+    b.onclick=()=>navigator.clipboard.writeText(withCopy).then(()=>b.textContent='copied ✓');
+    el.appendChild(document.createTextNode(' ')); el.appendChild(b);
+  }
+}
+function setLoading(on){
+  const go=$('go'); go.disabled=on;
+  go.innerHTML = on ? '<span class="spin"></span>' : '&gt;&gt;';
+  document.body.className = on ? 'is-busy' : (state.base?'is-ok':'');
+}
+function copyCmd(btn){
+  navigator.clipboard.writeText(btn.parentElement.querySelector('code').innerText).then(()=>{
+    btn.textContent='copied ✓'; setTimeout(()=>btn.textContent='copy',1500);
+  });
+}
+
+/* ---------- diagnostics ---------- */
+async function runDiagnostics(){
+  const list = candidateBases();
+  const el = $('diag-list');
+  el.innerHTML = '<div class="diag-note">probing '+list.length+' servers…</div>';
+  const rows = await Promise.all(list.map(async u=>{
+    const t = performance.now();
+    try{
+      const r = await probe(u, 6000);
+      return { u, ok:true, ms:Math.round(performance.now()-t), v:r.info.version };
+    }catch(e){ return { u, ok:false, why:(e&&e.message)||'unreachable' }; }
+  }));
+  el.innerHTML='';
+  rows.forEach((r,i)=>{
+    const d=document.createElement('div');
+    d.className='diag-row '+(r.ok?'ok':'bad');
+    d.style.animationDelay=(i*60)+'ms';
+    const locked=state.blacklist.has(r.u.replace(/\/$/,''));
+    d.innerHTML='<span class="diag-host">'+r.u.replace(/^https?:\/\//,'')+'</span>'
+      +'<span class="diag-meta">'+(r.ok?('v'+r.v+' · '+r.ms+'ms'):r.why)+'</span>'
+      +'<span class="diag-chip">'+(r.ok?(locked?'alive · skipped once':'alive'):'down')+'</span>';
+    el.appendChild(d);
+  });
+  const alive=rows.filter(r=>r.ok).length;
+  status(alive+' of '+rows.length+' servers alive'+(alive?'':' — add fresh ones above, or start your own backend'), alive?'ok':'err');
+}
+function saveExtras(){
+  localStorage.setItem('cobalt.extra', $('extra-servers').value);
+  state.blacklist.clear();
+  status('saved — rechecking servers…','info');
+  connect();
+}
+
+/* ---------- main request ---------- */
+async function processRequest(attempt=0){
+  const url = $('link').value.trim();
+  if(attempt===0){
+    if(!url){
+      const box=$('input-box'); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+      status('paste a link first','err'); return;
+    }
+    setLoading(true); $('picker').className=''; $('picker').innerHTML='';
+    if(!state.base){
+      status('no server connected — rechecking automatically…','info');
+      state.blacklist.clear(); await connect();
+      if(!state.base){ setLoading(false); status('still no server — open “servers & diagnostics” to see why','err'); return; }
+    }
+    status('fetching media…');
+  }
+  if(attempt >= state.live.length*2 + 2){
+    setLoading(false);
+    status('every server is bot-locked or busy — start your own backend (one command, no checks), or retry later','err');
+    return;
+  }
+
+  const payload = {
+    url,
+    downloadMode:      state.mode,
+    videoQuality:      $('s-quality').value,
+    audioFormat:       $('s-aformat').value,
+    audioBitrate:      $('s-abitrate').value,
+    filenameStyle:     $('s-fname').value,
+    youtubeVideoCodec: $('s-ytcodec').value,
+    alwaysProxy:       $('s-proxy').checked,
+    disableMetadata:   $('s-nometa').checked,
+    tiktokFullAudio:   $('s-ttfull').checked,
+    tiktokH265:        $('s-tth265').checked,
+  };
+  const headers = { Accept:'application/json', 'Content-Type':'application/json' };
+  const key = localStorage.getItem('cobalt.key');
+  if(key) headers['Authorization'] = 'Api-Key ' + key;
+
+  const retry = d => setTimeout(()=>processRequest(attempt+1), d);
+  const rotate = msg => {
+    state.blacklist.add(state.base);
+    status(msg,'info');
+    if(pickNext()){ retry(250); return true; }
+    setLoading(false);
+    status('no usable servers left — run diagnostics, or start your own backend','err');
+    return false;
+  };
+
+  try{
+    const r = await fetch(state.base+'/', { method:'POST', headers, body:JSON.stringify(payload) });
+    let j; try{ j = await r.json(); }catch(e){ throw new Error('bad response'); }
+    const code = j.error && j.error.code;
+    const locked = j.status==='error' && code &&
+      (code.startsWith('error.api.auth.') || code==='error.api.rate_exceeded' || code==='error.api.youtube.login');
+
+    if(locked && !state.custom){ if(rotate('server locked or busy — switching…')) return; return; }
+    handleResponse(j); setLoading(false);
+  }catch(e){
+    if(!state.custom){ if(rotate('server didn\'t answer — switching…')) return; return; }
+    setLoading(false);
+    status('couldn\'t reach your backend — is docker + server.js still running?','err');
+  }
+}
+
+function handleResponse(j){
+  switch(j.status){
+    case 'tunnel': case 'redirect':
+      status('done! your download should start now.','ok', j.url);
+      download(j.url, j.filename);
+      break;
+    case 'picker':
+      status('this post has several items — tap one to save it.','ok');
+      renderPicker(j);
+      break;
+    case 'error':
+      status(friendlyError(j.error && j.error.code), 'err');
+      break;
+    default:
+      status('unexpected response from server ('+j.status+')','err');
+  }
+}
+
+const ERROR_MAP = {
+  'error.local.backend.down':'your local cobalt isn\'t running — start it: docker compose up -d',
+  'error.api.auth.jwt.missing':'this server demands a bot-check — retry to rotate, or use your own backend',
+  'error.api.auth.key.missing':'this instance needs an api key — add it under “your own server”',
+  'error.api.link.invalid':'that link looks invalid — double-check it',
+  'error.api.service.unsupported':'this service isn\'t supported by cobalt',
+  'error.api.service.notfound':'this service isn\'t supported by cobalt',
+  'error.api.content.video.unavailable':'this media is unavailable (private / region-locked?)',
+  'error.api.content.video.private':'this media is private',
+  'error.api.content.video.age':'this media is age-restricted',
+  'error.api.content.too.long':'this media is too long for the server to process',
+  'error.api.fetch.fail':'the server couldn\'t fetch that media — retry, or try another quality',
+  'error.api.invalid_body':'the server rejected the settings — try defaults',
+};
+function friendlyError(code){
+  if(!code) return 'unknown server error';
+  return (ERROR_MAP[code] || 'server error') + '  ·  [' + code + ']';
+}
+
+/* ---------- downloads ---------- */
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+function download(url, filename){
+  if(isIOS){
+    const w = window.open(url,'_blank');
+    if(!w) location.href = url;
+    status('opened in a new tab — tap share → “save to files” (or use copy link)','info', url);
+  }else{
+    const a=document.createElement('a');
+    a.href=url; if(filename) a.download=filename; a.rel='noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+}
+function renderPicker(j){
+  const grid=$('picker'); grid.innerHTML='';
+  let i=0;
+  if(j.audio){
+    const t=document.createElement('div'); t.className='tile audio'; t.textContent='🎵';
+    t.style.animation='rise .3s ease-out both'; t.style.animationDelay=(i++*45)+'ms';
+    t.onclick=()=>download(j.audio,'audio'); grid.appendChild(t);
+  }
+  (j.picker||[]).forEach(item=>{
+    const t=document.createElement('div'); t.className='tile';
+    t.innerHTML='<img src="'+(item.thumb||item.url)+'" alt="" loading="lazy">'
+      +(item.type==='video'?'<span class="badge">▶ video</span>':'');
+    t.style.animation='rise .3s ease-out both'; t.style.animationDelay=(i++*45)+'ms';
+    t.onclick=()=>download(item.url);
+    grid.appendChild(t);
+  });
+  grid.classList.add('show');
+}
+
+/* ---------- events & boot ---------- */
+$('go').addEventListener('click', ()=>processRequest());
+$('link').addEventListener('keydown', e=>{ if(e.key==='Enter') processRequest(); });
+$('paste').addEventListener('click', async ()=>{
+  try{ $('link').value = await navigator.clipboard.readText(); $('link').focus(); }
+  catch(e){ $('link').focus(); status('clipboard blocked — long-press the field and tap paste','info'); }
+});
+$('conn-recheck').addEventListener('click', async ()=>{
+  const b=$('conn-recheck'); b.classList.add('spinning');
+  state.blacklist.clear(); await connect();
+  b.classList.remove('spinning');
+});
+document.querySelectorAll('#switcher button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('#switcher button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); state.mode = b.dataset.mode;
+  });
+});
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#services')) $('services').classList.remove('open');
+});
+
+loadSettings();
+$('srv-url').value = localStorage.getItem('cobalt.server')||'';
+$('srv-key').value = localStorage.getItem('cobalt.key')||'';
+$('extra-servers').value = localStorage.getItem('cobalt.extra')||'';
+connect();
+</script>
+</body>
+</html>
